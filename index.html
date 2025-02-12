@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>汤圆</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+      flex-direction: column;
+      gap: 50px;
+    }
+
+    .tangyuan-types {
+      display: flex;
+      gap: 30px;
+    }
+
+    .tangyuan-type {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(145deg, #ffffff, #f8f8f8);
+      box-shadow: 
+        inset -3px -3px 8px rgba(0,0,0,0.1),
+        2px 2px 8px rgba(255,255,255,0.8);
+    }
+
+    .tangyuan-type::after {
+      content: '';
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      position: absolute;
+    }
+
+    .black-sesame::after {
+      background: #333;
+      opacity: 0.8;
+    }
+
+    .red-bean::after {
+      background: #8B4513;
+      opacity: 0.8;
+    }
+
+    .bowl {
+      width: 300px;
+      height: 300px;
+      background: linear-gradient(145deg, #ffffff, #e6e6e6);
+      border-radius: 50%;
+      position: relative;
+      border: 8px solid #d4d4d4;
+      box-shadow: 
+        inset 0 0 50px rgba(0,0,0,0.2),
+        0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    .bowl-inner {
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      top: 20px;
+      left: 20px;
+      border-radius: 50%;
+      background: linear-gradient(to bottom, 
+        rgba(255, 248, 220, 0.95),
+        rgba(255, 248, 220, 0.8));
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.1);
+    }
+
+    .tangyuan {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      position: absolute;
+      cursor: grab;
+      user-select: none;
+      background: linear-gradient(145deg, #ffffff, #f8f8f8);
+      box-shadow: 
+        inset -3px -3px 8px rgba(0,0,0,0.1),
+        2px 2px 8px rgba(255,255,255,0.8);
+    }
+
+    .tangyuan::after {
+      content: '';
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .tangyuan.black-sesame::after {
+      background: #333;
+      opacity: 0.8;
+    }
+
+    .tangyuan.red-bean::after {
+      background: #8B4513;
+      opacity: 0.8;
+    }
+
+    .tangyuan.dragging {
+      cursor: grabbing;
+      z-index: 1000;
+    }
+
+    .tangyuan-type, .tangyuan {
+      touch-action: none; /* 防止触摸时的默认行为 */
+    }
+
+    .eat-button {
+      padding: 12px 24px;
+      font-size: 18px;
+      background: linear-gradient(145deg, #ff9a9e, #fad0c4);
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .eat-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .eat-button:active {
+      transform: translateY(1px);
+    }
+
+    .celebration {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: #ff6b6b;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .celebration.show {
+      opacity: 1;
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translate(-50%, -100%);
+      }
+    }
+
+    .tangyuan.eating {
+      animation: fadeOut 0.5s forwards;
+    }
+  </style>
+</head>
+<body>
+  <div class="tangyuan-types">
+    <div class="tangyuan-type black-sesame" data-type="black-sesame">
+      <span class="tooltip">黑芝麻</span>
+    </div>
+    <div class="tangyuan-type red-bean" data-type="red-bean">
+      <span class="tooltip">红豆</span>
+    </div>
+  </div>
+
+  <div class="bowl">
+    <div class="bowl-inner"></div>
+  </div>
+
+  <button class="eat-button">点击开吃</button>
+  <div class="celebration">元宵节快乐！</div>
+
+  <script>
+    const bowlInner = document.querySelector('.bowl-inner');
+    const tangyuanTypes = document.querySelectorAll('.tangyuan-type');
+
+    tangyuanTypes.forEach(type => {
+      type.addEventListener('mousedown', createTangyuan);
+      type.addEventListener('touchstart', handleTouchStart, { passive: false });
+    });
+
+    function handleTouchStart(e) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      createTangyuan({
+        target: e.target,
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+    }
+
+    function createTangyuan(e) {
+      const type = e.target.closest('.tangyuan-type');
+      const tangyuan = document.createElement('div');
+      tangyuan.className = `tangyuan ${type.dataset.type}`;
+      
+      const rect = type.getBoundingClientRect();
+      tangyuan.style.left = (e.clientX - rect.width/2) + 'px';
+      tangyuan.style.top = (e.clientY - rect.height/2) + 'px';
+      
+      document.body.appendChild(tangyuan);
+      
+      // 添加鼠标和触摸事件监听器
+      tangyuan.addEventListener('mousedown', (e) => initDraggable(tangyuan, e));
+      tangyuan.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        initDraggable(tangyuan, {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+          target: tangyuan,
+          isTouch: true
+        });
+      }, { passive: false });
+      
+      // 立即开始拖动
+      initDraggable(tangyuan, {...e, isTouch: e.touches !== undefined});
+    }
+
+    function initDraggable(tangyuan, startEvent) {
+      let isDragging = false;
+      let currentX;
+      let currentY;
+      let initialX;
+      let initialY;
+      let xOffset = 0;
+      let yOffset = 0;
+      const isTouch = startEvent.isTouch;
+
+      function dragStart(e) {
+        const rect = tangyuan.getBoundingClientRect();
+        xOffset = rect.left;
+        yOffset = rect.top;
+        
+        initialX = (isTouch ? e.touches[0].clientX : e.clientX) - xOffset;
+        initialY = (isTouch ? e.touches[0].clientY : e.clientY) - yOffset;
+
+        if (e.target === tangyuan) {
+          isDragging = true;
+          tangyuan.classList.add('dragging');
+          
+          if (tangyuan.parentElement === bowlInner) {
+            const rect = tangyuan.getBoundingClientRect();
+            document.body.appendChild(tangyuan);
+            tangyuan.style.position = 'absolute';
+            tangyuan.style.left = rect.left + 'px';
+            tangyuan.style.top = rect.top + 'px';
+          }
+        }
+      }
+
+      function drag(e) {
+        if (isDragging) {
+          e.preventDefault();
+          const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+          const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+          
+          currentX = clientX - initialX;
+          currentY = clientY - initialY;
+          
+          tangyuan.style.left = currentX + 'px';
+          tangyuan.style.top = currentY + 'px';
+        }
+      }
+
+      function dragEnd(e) {
+        if (isDragging) {
+          const bowlRect = bowlInner.getBoundingClientRect();
+          const tangyuanRect = tangyuan.getBoundingClientRect();
+          
+          const clientX = isTouch && e.changedTouches 
+            ? e.changedTouches[0].clientX 
+            : e.clientX;
+          const clientY = isTouch && e.changedTouches 
+            ? e.changedTouches[0].clientY 
+            : e.clientY;
+          
+          const centerX = bowlRect.left + bowlRect.width/2;
+          const centerY = bowlRect.top + bowlRect.height/2;
+          const distance = Math.sqrt(
+            Math.pow(clientX - centerX, 2) + 
+            Math.pow(clientY - centerY, 2)
+          );
+
+          if (distance < bowlRect.width/2 - tangyuanRect.width/2) {
+            const relativeX = ((clientX - bowlRect.left) / bowlRect.width) * 100;
+            const relativeY = ((clientY - bowlRect.top) / bowlRect.height) * 100;
+            
+            tangyuan.style.position = 'absolute';
+            tangyuan.style.left = `${relativeX}%`;
+            tangyuan.style.top = `${relativeY}%`;
+            bowlInner.appendChild(tangyuan);
+          } else {
+            tangyuan.remove();
+          }
+        }
+        
+        isDragging = false;
+        tangyuan.classList.remove('dragging');
+      }
+
+      // 移除之前的事件监听器
+      document.removeEventListener('mousemove', drag);
+      document.removeEventListener('mouseup', dragEnd);
+      document.removeEventListener('touchmove', drag);
+      document.removeEventListener('touchend', dragEnd);
+      
+      // 添加新的事件监听器
+      if (isTouch) {
+        dragStart(startEvent);
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('touchend', dragEnd);
+      } else {
+        dragStart(startEvent);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+      }
+    }
+
+    // 添加开吃按钮的功能
+    const eatButton = document.querySelector('.eat-button');
+    const celebration = document.querySelector('.celebration');
+
+    eatButton.addEventListener('click', () => {
+      const tangyuans = document.querySelectorAll('.bowl-inner .tangyuan');
+      
+      if (tangyuans.length === 0) {
+        return; // 如果碗里没有汤圆，不执行动作
+      }
+
+      // 为每个汤圆添加消失动画
+      tangyuans.forEach((tangyuan, index) => {
+        setTimeout(() => {
+          tangyuan.classList.add('eating');
+          tangyuan.addEventListener('animationend', () => {
+            tangyuan.remove();
+          });
+        }, index * 200); // 每个汤圆依次消失
+      });
+
+      // 显示祝福语
+      setTimeout(() => {
+        celebration.classList.add('show');
+        setTimeout(() => {
+          celebration.classList.remove('show');
+        }, 3000); // 3秒后隐藏祝福语
+      }, tangyuans.length * 200 + 500); // 等所有汤圆消失后显示
+    });
+  </script>
+</body>
+</html>
