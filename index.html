@@ -216,26 +216,44 @@
       tangyuan.className = `tangyuan ${type.dataset.type}`;
       
       const rect = type.getBoundingClientRect();
-      tangyuan.style.left = (e.clientX - rect.width/2) + 'px';
-      tangyuan.style.top = (e.clientY - rect.height/2) + 'px';
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      tangyuan.style.left = (clientX - rect.width/2) + 'px';
+      tangyuan.style.top = (clientY - rect.height/2) + 'px';
       
       document.body.appendChild(tangyuan);
       
-      // 添加鼠标和触摸事件监听器
-      tangyuan.addEventListener('mousedown', (e) => initDraggable(tangyuan, e));
-      tangyuan.addEventListener('touchstart', (e) => {
+      // 添加触摸事件监听器
+      tangyuan.addEventListener('touchstart', function(e) {
         e.preventDefault();
         const touch = e.touches[0];
         initDraggable(tangyuan, {
           clientX: touch.clientX,
           clientY: touch.clientY,
           target: tangyuan,
-          isTouch: true
+          isTouch: true,
+          touches: e.touches
         });
       }, { passive: false });
+
+      // 添加鼠标事件监听器
+      tangyuan.addEventListener('mousedown', function(e) {
+        initDraggable(tangyuan, e);
+      });
       
       // 立即开始拖动
-      initDraggable(tangyuan, {...e, isTouch: e.touches !== undefined});
+      if (e.touches) {
+        initDraggable(tangyuan, {
+          clientX: e.touches[0].clientX,
+          clientY: e.touches[0].clientY,
+          target: tangyuan,
+          isTouch: true,
+          touches: e.touches
+        });
+      } else {
+        initDraggable(tangyuan, e);
+      }
     }
 
     function initDraggable(tangyuan, startEvent) {
@@ -253,20 +271,21 @@
         xOffset = rect.left;
         yOffset = rect.top;
         
-        initialX = (isTouch ? e.touches[0].clientX : e.clientX) - xOffset;
-        initialY = (isTouch ? e.touches[0].clientY : e.clientY) - yOffset;
+        const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+        const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+        
+        initialX = clientX - xOffset;
+        initialY = clientY - yOffset;
 
-        if (e.target === tangyuan) {
-          isDragging = true;
-          tangyuan.classList.add('dragging');
-          
-          if (tangyuan.parentElement === bowlInner) {
-            const rect = tangyuan.getBoundingClientRect();
-            document.body.appendChild(tangyuan);
-            tangyuan.style.position = 'absolute';
-            tangyuan.style.left = rect.left + 'px';
-            tangyuan.style.top = rect.top + 'px';
-          }
+        isDragging = true;
+        tangyuan.classList.add('dragging');
+        
+        if (tangyuan.parentElement === bowlInner) {
+          const rect = tangyuan.getBoundingClientRect();
+          document.body.appendChild(tangyuan);
+          tangyuan.style.position = 'absolute';
+          tangyuan.style.left = rect.left + 'px';
+          tangyuan.style.top = rect.top + 'px';
         }
       }
 
@@ -320,7 +339,7 @@
         tangyuan.classList.remove('dragging');
       }
 
-      // 移除之前的事件监听器
+      // 清理之前的事件监听器
       document.removeEventListener('mousemove', drag);
       document.removeEventListener('mouseup', dragEnd);
       document.removeEventListener('touchmove', drag);
@@ -331,6 +350,7 @@
         dragStart(startEvent);
         document.addEventListener('touchmove', drag, { passive: false });
         document.addEventListener('touchend', dragEnd);
+        document.addEventListener('touchcancel', dragEnd);
       } else {
         dragStart(startEvent);
         document.addEventListener('mousemove', drag);
@@ -338,16 +358,23 @@
       }
     }
 
-    // 添加开吃按钮的功能
+    // 修改开吃按钮的功能
     const eatButton = document.querySelector('.eat-button');
     const celebration = document.querySelector('.celebration');
 
-    eatButton.addEventListener('click', () => {
+    eatButton.addEventListener('click', handleEat);
+    eatButton.addEventListener('touchstart', handleEat, { passive: false });
+
+    function handleEat(e) {
+      e.preventDefault(); // 防止触摸事件的默认行为
       const tangyuans = document.querySelectorAll('.bowl-inner .tangyuan');
       
       if (tangyuans.length === 0) {
-        return; // 如果碗里没有汤圆，不执行动作
+        return;
       }
+
+      // 禁用按钮防止重复点击
+      eatButton.disabled = true;
 
       // 为每个汤圆添加消失动画
       tangyuans.forEach((tangyuan, index) => {
@@ -356,7 +383,7 @@
           tangyuan.addEventListener('animationend', () => {
             tangyuan.remove();
           });
-        }, index * 200); // 每个汤圆依次消失
+        }, index * 200);
       });
 
       // 显示祝福语
@@ -364,9 +391,10 @@
         celebration.classList.add('show');
         setTimeout(() => {
           celebration.classList.remove('show');
-        }, 3000); // 3秒后隐藏祝福语
-      }, tangyuans.length * 200 + 500); // 等所有汤圆消失后显示
-    });
+          eatButton.disabled = false; // 重新启用按钮
+        }, 3000);
+      }, tangyuans.length * 200 + 500);
+    }
   </script>
 </body>
 </html>
