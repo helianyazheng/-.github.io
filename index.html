@@ -219,34 +219,17 @@
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       
+      tangyuan.style.position = 'absolute';  // 确保设置了position
       tangyuan.style.left = (clientX - rect.width/2) + 'px';
       tangyuan.style.top = (clientY - rect.height/2) + 'px';
       
       document.body.appendChild(tangyuan);
-      
-      // 添加触摸事件监听器
-      tangyuan.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        const touch = e.touches[0];
-        initDraggable(tangyuan, {
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-          target: tangyuan,
-          isTouch: true,
-          touches: e.touches
-        });
-      }, { passive: false });
 
-      // 添加鼠标事件监听器
-      tangyuan.addEventListener('mousedown', function(e) {
-        initDraggable(tangyuan, e);
-      });
-      
-      // 立即开始拖动
+      // 简化事件监听，直接在创建时初始化拖动
       if (e.touches) {
         initDraggable(tangyuan, {
-          clientX: e.touches[0].clientX,
-          clientY: e.touches[0].clientY,
+          clientX,
+          clientY,
           target: tangyuan,
           isTouch: true,
           touches: e.touches
@@ -258,28 +241,24 @@
 
     function initDraggable(tangyuan, startEvent) {
       let isDragging = false;
-      let currentX;
-      let currentY;
       let initialX;
       let initialY;
-      let xOffset = 0;
-      let yOffset = 0;
+      let currentX;
+      let currentY;
       const isTouch = startEvent.isTouch;
 
       function dragStart(e) {
-        const rect = tangyuan.getBoundingClientRect();
-        xOffset = rect.left;
-        yOffset = rect.top;
-        
-        const clientX = isTouch ? e.touches[0].clientX : e.clientX;
-        const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-        
-        initialX = clientX - xOffset;
-        initialY = clientY - yOffset;
+        if (isTouch) {
+          initialX = e.touches[0].clientX - tangyuan.offsetLeft;
+          initialY = e.touches[0].clientY - tangyuan.offsetTop;
+        } else {
+          initialX = e.clientX - tangyuan.offsetLeft;
+          initialY = e.clientY - tangyuan.offsetTop;
+        }
 
         isDragging = true;
         tangyuan.classList.add('dragging');
-        
+
         if (tangyuan.parentElement === bowlInner) {
           const rect = tangyuan.getBoundingClientRect();
           document.body.appendChild(tangyuan);
@@ -290,72 +269,99 @@
       }
 
       function drag(e) {
-        if (isDragging) {
-          e.preventDefault();
-          const clientX = isTouch ? e.touches[0].clientX : e.clientX;
-          const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-          
-          currentX = clientX - initialX;
-          currentY = clientY - initialY;
-          
-          tangyuan.style.left = currentX + 'px';
-          tangyuan.style.top = currentY + 'px';
+        if (!isDragging) return;
+        e.preventDefault();
+
+        if (isTouch) {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
         }
+
+        tangyuan.style.left = currentX + 'px';
+        tangyuan.style.top = currentY + 'px';
       }
 
       function dragEnd(e) {
-        if (isDragging) {
-          const bowlRect = bowlInner.getBoundingClientRect();
-          const tangyuanRect = tangyuan.getBoundingClientRect();
-          
-          const clientX = isTouch && e.changedTouches 
-            ? e.changedTouches[0].clientX 
-            : e.clientX;
-          const clientY = isTouch && e.changedTouches 
-            ? e.changedTouches[0].clientY 
-            : e.clientY;
-          
-          const centerX = bowlRect.left + bowlRect.width/2;
-          const centerY = bowlRect.top + bowlRect.height/2;
-          const distance = Math.sqrt(
-            Math.pow(clientX - centerX, 2) + 
-            Math.pow(clientY - centerY, 2)
-          );
+        if (!isDragging) return;
 
-          if (distance < bowlRect.width/2 - tangyuanRect.width/2) {
-            const relativeX = ((clientX - bowlRect.left) / bowlRect.width) * 100;
-            const relativeY = ((clientY - bowlRect.top) / bowlRect.height) * 100;
-            
-            tangyuan.style.position = 'absolute';
-            tangyuan.style.left = `${relativeX}%`;
-            tangyuan.style.top = `${relativeY}%`;
-            bowlInner.appendChild(tangyuan);
-          } else {
-            tangyuan.remove();
-          }
+        const bowlRect = bowlInner.getBoundingClientRect();
+        const tangyuanRect = tangyuan.getBoundingClientRect();
+
+        const clientX = isTouch && e.changedTouches 
+          ? e.changedTouches[0].clientX 
+          : e.clientX;
+        const clientY = isTouch && e.changedTouches 
+          ? e.changedTouches[0].clientY 
+          : e.clientY;
+
+        const centerX = bowlRect.left + bowlRect.width/2;
+        const centerY = bowlRect.top + bowlRect.height/2;
+        const distance = Math.sqrt(
+          Math.pow(clientX - centerX, 2) + 
+          Math.pow(clientY - centerY, 2)
+        );
+
+        if (distance < bowlRect.width/2 - tangyuanRect.width/2) {
+          const relativeX = ((clientX - bowlRect.left) / bowlRect.width) * 100;
+          const relativeY = ((clientY - bowlRect.top) / bowlRect.height) * 100;
+          
+          tangyuan.style.position = 'absolute';
+          tangyuan.style.left = `${relativeX}%`;
+          tangyuan.style.top = `${relativeY}%`;
+          bowlInner.appendChild(tangyuan);
+        } else {
+          tangyuan.remove();
         }
-        
+
         isDragging = false;
         tangyuan.classList.remove('dragging');
+
+        // 清理事件监听器
+        cleanup();
       }
 
-      // 清理之前的事件监听器
-      document.removeEventListener('mousemove', drag);
-      document.removeEventListener('mouseup', dragEnd);
-      document.removeEventListener('touchmove', drag);
-      document.removeEventListener('touchend', dragEnd);
-      
-      // 添加新的事件监听器
+      function cleanup() {
+        document.removeEventListener('mousemove', drag);
+        document.removeEventListener('mouseup', dragEnd);
+        document.removeEventListener('touchmove', drag);
+        document.removeEventListener('touchend', dragEnd);
+        document.removeEventListener('touchcancel', dragEnd);
+      }
+
+      // 初始化拖动
+      dragStart(startEvent);
+
+      // 添加事件监听器
       if (isTouch) {
-        dragStart(startEvent);
         document.addEventListener('touchmove', drag, { passive: false });
         document.addEventListener('touchend', dragEnd);
         document.addEventListener('touchcancel', dragEnd);
       } else {
-        dragStart(startEvent);
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', dragEnd);
       }
+
+      // 为汤圆添加新的触摸事件监听器
+      tangyuan.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        cleanup(); // 清理之前的事件监听器
+        initDraggable(tangyuan, {
+          clientX: e.touches[0].clientX,
+          clientY: e.touches[0].clientY,
+          target: tangyuan,
+          isTouch: true,
+          touches: e.touches
+        });
+      }, { passive: false });
+
+      // 为汤圆添加新的鼠标事件监听器
+      tangyuan.addEventListener('mousedown', function(e) {
+        cleanup(); // 清理之前的事件监听器
+        initDraggable(tangyuan, e);
+      });
     }
 
     // 修改开吃按钮的功能
